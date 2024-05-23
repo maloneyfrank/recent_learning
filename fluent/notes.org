@@ -1,0 +1,271 @@
+* fluent python notes
+
+** chapter one: the python data model
+ 
+*** a pythonic card deck
+
+ * collections.namedtuple() lets us construct a simple class with named attributes, no custom methods.
+   
+ * the underscore before the class variable name indicates that it is intended for internal used to the class. 
+
+
+ #+begin_src python :results output :session fluent
+   import collections
+
+   Card = collections.namedtuple('Card', ['rank', 'suit'])
+
+   class FrenchDeck:
+       ranks = [str(n) for n in range(2,11)] + list('JQKA')
+       suits  ='spades diamonds clubs hearts'.split()
+
+       def __init__(self):
+           self._cards = [Card(rank, suit) for suit in self.suits
+                          for rank in self.ranks]
+
+       def __len__(self):
+           return len(self._cards)
+
+       def __getitem__(self, position):
+           return self._cards[position]
+
+ #+end_src
+
+ #+RESULTS:
+
+ #+begin_src python :session fluent
+   deck = FrenchDeck()
+   len(deck)
+ #+end_src
+
+ #+RESULTS:
+ : 52
+
+  #+begin_src python  :session fluent
+    deck[0]
+  #+end_src
+
+ #+RESULTS:
+ : Card(rank='2', suit='spades')
+
+ #+begin_src python :session fluent
+
+   from random import choice
+   choice(deck)
+
+ #+end_src
+
+ #+RESULTS:
+ : Card(rank='J', suit='hearts')
+ 
+ #+begin_src  python :session fluent
+   deck[:3]
+ #+end_src
+
+ #+RESULTS:
+ | Card | (rank= 2 suit= spades) | Card | (rank= 3 suit= spades) | Card | (rank= 4 suit= spades) |
+
+ * Users don't need to remember special method names for standard operations.
+ * Easier to benefit from the python standard library to avoid reinvention of the wheel.
+   * E.g. automatically supporting slicing.
+
+#+begin_src python :session fluent
+  deck[12::13]
+#+end_src
+
+#+RESULTS:
+| Card | (rank= A suit= spades) | Card | (rank= A suit= diamonds) | Card | (rank= A suit= clubs) | Card | (rank= A suit= hearts) |
+
+#+begin_src python :session fluent
+  for card in deck:
+      print(card)
+#+end_src
+
+#+RESULTS:
+
+ * By using the __getitem__ special method, our deck is automatically iterable.
+ * If the collectio has no __contains__ method, the in operator does a sequential scan. - works because it is iterable.
+
+ #+begin_src python :session fluent
+
+   Card('Q', 'hearts') in deck
+
+ #+end_src
+ 
+ #+RESULTS:
+ : True
+
+  
+ #+begin_src python :session fluent :results output
+
+   suit_values = dict(spades=3, hearts=2, diamonds=1, clubs=0)
+
+   def spades_high(card):
+       rank_value  = FrenchDeck.ranks.index(card.rank)
+       return rank_value * len(suit_values) + suit_values[card.suit]
+
+   for card in sorted(deck, key=spades_high):
+       print(card)
+
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ Card(rank='2', suit='clubs')
+ Card(rank='2', suit='diamonds')
+ Card(rank='2', suit='hearts')
+ Card(rank='2', suit='spades')
+ Card(rank='3', suit='clubs')
+ Card(rank='3', suit='diamonds')
+ Card(rank='3', suit='hearts')
+ Card(rank='3', suit='spades')
+ Card(rank='4', suit='clubs')
+ Card(rank='4', suit='diamonds')
+ Card(rank='4', suit='hearts')
+ Card(rank='4', suit='spades')
+ Card(rank='5', suit='clubs')
+ Card(rank='5', suit='diamonds')
+ Card(rank='5', suit='hearts')
+ Card(rank='5', suit='spades')
+ Card(rank='6', suit='clubs')
+ Card(rank='6', suit='diamonds')
+ Card(rank='6', suit='hearts')
+ Card(rank='6', suit='spades')
+ Card(rank='7', suit='clubs')
+ Card(rank='7', suit='diamonds')
+ Card(rank='7', suit='hearts')
+ Card(rank='7', suit='spades')
+ Card(rank='8', suit='clubs')
+ Card(rank='8', suit='diamonds')
+ Card(rank='8', suit='hearts')
+ Card(rank='8', suit='spades')
+ Card(rank='9', suit='clubs')
+ Card(rank='9', suit='diamonds')
+ Card(rank='9', suit='hearts')
+ Card(rank='9', suit='spades')
+ Card(rank='10', suit='clubs')
+ Card(rank='10', suit='diamonds')
+ Card(rank='10', suit='hearts')
+ Card(rank='10', suit='spades')
+ Card(rank='J', suit='clubs')
+ Card(rank='J', suit='diamonds')
+ Card(rank='J', suit='hearts')
+ Card(rank='J', suit='spades')
+ Card(rank='Q', suit='clubs')
+ Card(rank='Q', suit='diamonds')
+ Card(rank='Q', suit='hearts')
+ Card(rank='Q', suit='spades')
+ Card(rank='K', suit='clubs')
+ Card(rank='K', suit='diamonds')
+ Card(rank='K', suit='hearts')
+ Card(rank='K', suit='spades')
+ Card(rank='A', suit='clubs')
+ Card(rank='A', suit='diamonds')
+ Card(rank='A', suit='hearts')
+ Card(rank='A', suit='spades')
+ #+end_example
+
+
+ The first thing to know about special methods is that they are meant to be called by the Python interpreter, and not by you. You don’t write my_object.__len__(). You write len(my_object) and, if my_object is an instance of a user-defined class, then Python calls the __len__ method you implemented.
+
+ 
+Normally, your code should not have many direct calls to special methods. Unless you are doing a lot of metaprogramming, you should be implementing special methods more often than invoking them explicitly. The only special method that is frequently called by user code directly is __init__ to invoke the initializer of the superclass in your own __init__ implementation.
+
+*** Evaluating Numeric Types + more
+
+
+#+begin_src  python :session fluent
+
+  import math
+
+  class Vector:
+
+      def __init__(self, x=0, y=0):
+          self.x = x
+          self.y = y
+
+      def __repr__(self):
+          # !r calls the repr() instead of str() method of the self.x, self.y
+          return f'Vector({self.x!r}, {self.y!r})'
+
+      def __abs__(self):
+          return math.hypot(self.x, self.y)
+
+      def __bool__(self):
+          return bool(abs(self))
+
+      def __add__(self, other):
+          x = self.x + other.x
+          y = self.y+other.y
+
+          return Vector(x,y)
+
+      def __mul__(self, scalar):
+          return Vector(self.x * scalar, self.y * scalar)
+
+#+end_src
+
+#+RESULTS:
+
+As implemented, Example 1-2 allows multiplying a Vector by a number, but not a number by a Vector, which violates the commutative property of scalar multiplication. We will fix that with the special method __rmul__ in Chapter 16.
+
+#+begin_src  python :session fluent
+
+  v1 = Vector(3,4)
+  v2 = Vector(2,3)
+
+  v1+v2
+
+#+end_src
+
+#+RESULTS:
+: Vector(5, 7)
+
+Without a custom __repr__, Python’s console would display a Vector instance <Vector object at 0x10e100070>.
+
+Note that the f-string in our __repr__ uses !r to get the standard representation of the attributes to be displayed. This is good practice, because it shows the crucial difference between Vector(1, 2) and Vector('1', '2')—the latter would not work in the context of this example, because the constructor’s arguments should be numbers, not str.
+
+In contrast, __str__ is called by the str() built-in and implicitly used by the print function. It should return a string suitable for display to end users.
+
+Sometimes same string returned by __repr__ is user-friendly, and you don’t need to code __str__ because the implementation inherited from the object class calls __repr__ as a fallback. Example 5-2 is one of several examples in this book with a custom __str__.
+
+*** Boolean value of a custom type
+
+By default, instances of user-defined classes are considered truthy, unless either __bool__ or __len__ is implemented. Basically, bool(x) calls x.__bool__() and uses the result. If __bool__ is not implemented, Python tries to invoke x.__len__(), and if that returns zero, bool returns False. Otherwise bool returns True.
+
+
+#+begin_src python :session fluent
+
+  abs(v1) # 5.0
+
+  bool(v1) # True
+  #+end_src
+
+#+RESULTS:
+: True
+
+** chapter two: an array of sequences
+
+These are the main topics this chapter will cover:
+
+    List comprehensions and the basics of generator expressions
+
+    Using tuples as records versus using tuples as immutable lists
+
+    Sequence unpacking and sequence patterns
+
+    Reading from slices and writing to slices
+    
+    Specialized sequence types, like arrays and queues
+
+
+- Container Sequences
+  - Can hold items of different types, including nested containers.
+    - list, tuple, collections.deque.
+
+- Flat sequences
+  - Hold items of one simple type.
+    - str, bytes, array.array
+
+      
+    
+    
