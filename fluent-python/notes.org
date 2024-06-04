@@ -269,3 +269,215 @@ These are the main topics this chapter will cover:
       
     
     
+** chapter five data class builders
+
+Python offers a few ways to build a simple class that is just a collection of fields, with little or no extra functionality. That pattern is known as a “data class”—and dataclasses is one of the packages that supports this pattern. This chapter covers three different class builders that you may use as shortcuts to write data classes:
+
+ #+begin_src python :results output :session fluent
+   from collections import namedtuple
+
+   Coordinate = namedtuple('Coordinate', 'lat lon')
+
+   issubclass(Coordinate, tuple) # True
+
+   moscow = Coordinate(55.756, 37.617)
+
+   print(moscow)
+ #+end_src
+
+ #+RESULTS:
+ : Coordinate(lat=55.756, lon=37.617)
+
+ #+begin_src python :results output :session fluent
+
+   import typing
+
+   Coordinate = typing.NamedTuple('Coordinate', [('lat', float), ('lon', float)])
+   # or typing.NamedTuple('Coordinate', lat=float, lon=float)
+
+   print(typing.get_type_hints(Coordinate))
+ #+end_src
+
+ #+RESULTS:
+ : {'lat': <class 'float'>, 'lon': <class 'float'>}
+
+
+  #+begin_src python :results output :session fluent
+    from typing import NamedTuple
+
+    class Coordinate(NamedTuple):
+        lat: float
+        lon: float
+
+        def __str__(self):
+            ns = 'N' if self.lat >= 0 else 'S'
+            we = 'E' if self.lon >=0 else 'W'
+
+            return f'{abs(self.lat):.1f}{ns}, {abs(self.lon):.1f}{we}'
+
+
+    moscow = Coordinate(55.756, 37.617)
+    japan = Coordinate(55.756, 37.617)
+
+
+    print(moscow == japan)
+ #+end_src
+
+ #+RESULTS:
+ : True
+
+
+ #+Begin_src  python :results output :session fluent
+
+   from dataclasses import dataclass
+
+   @dataclass(frozen=True) # raises exception if value assigned to field after initialization
+   class Coordinate:
+       lat: float
+       lon: float
+
+       def __str__(self):
+           ns = 'N' if self.lat >= 0 else 'S'
+           we = 'E' if self.lon >= 0 else 'W'
+           return f'{abs(self.lat):.1f}°{ns}, {abs(self.lon):.1f}°{we}'
+    
+
+ #+end_src
+
+
+
+**** Classic NamedTuples
+ #+begin_src python :results output :session fluent
+
+   from collections import namedtuple
+
+   City = namedtuple('City', 'name country population coordinates')
+   tokyo = City('Tokyo', 'JP', 36.933, (35.689722, 139.691667))
+
+   print(tokyo.population)
+
+   print(tokyo._asdict())
+ #+end_src
+
+ #+RESULTS:
+ : 36.933
+ : {'name': 'Tokyo', 'country': 'JP', 'population': 36.933, 'coordinates': (35.689722, 139.691667)}
+
+
+**** Type Named Tuples
+
+ #+begin_src python :results output :session fluent
+   from typing import NamedTuple
+
+   class Coordinate(NamedTuple):
+       lat: float
+       lon: float
+       reference: str = 'WSG84'
+
+ #+end_src
+ 
+
+**** Variable annotation syntax:
+
+#+begin_src python
+
+  class DemoPlainClass:
+        a: int # entry in __annotations__ but otherwise discrded, no attr a is created
+        b: float = 1.1 # b is saved as an annotation and becomes attribute with value 1.1
+        c = 'spam' # plain old attribute, not an annotation
+        
+  DemoPlainClass.__annotations__
+        """
+
+  When DPC is built with type NamedTuple, a is also an instance attribute
+  """
+
+#+end_src
+
+**** More about @dataclass
+
+#+begin_src python :session fluent :results output
+
+  """
+
+    @dataclass(*, init=True, repr=True, eq=True, order=False,
+                unsafe_hash=False, frozen=False)
+    """
+
+  from dataclasses import dataclass, field
+  from typing import ClassVar
+
+  @dataclass
+  class ClubMember:
+      name: str
+      guests: list[str] = field(default_factory=list) # ensures that each instance gets its own
+      # blank list
+
+
+  @dataclass                                                          
+  class HackerClubMember(ClubMember):
+      #all_handles = set() # not type cheker satisfactory
+      all_handles: ClassVar[set[str]] = set()
+      handle: str = ''
+
+      def __post_init__(self):
+          cls = self.__class__
+          if self.handle == '':
+              self.handle = self.name.split()[0]
+
+          if self.handle in cls.all_handles:
+              msg = f'handle {self.handle!r} already exists.'
+              raise ValueError(msg)
+
+          cls.all_handles.add(self.handle)
+
+
+  leo  = HackerClubMember('Leo Jones')
+  leo2 = HackerClubMember('Leo Rones', handle='leo2')
+#+end_src
+
+#+RESULTS:
+: HackerClubMember(name='Leo Jones', guests=[], handle='Leo')
+: HackerClubMember(name='Leo Rones', guests=[], handle='leo2')
+
+Sometimes you may need to pass arguments to __init__ that are not instance fields. Such arguments are called init-only variables by the dataclasses documentation. To declare an argument like that, the dataclasses module provides the pseudotype InitVar, which uses the same syntax of typing.ClassVar. The example given in the documentation is a data class that has a field initialized from a database, and the database object must be passed to the constructor.
+
+#+begin_src python
+
+  @dataclass
+  class C:
+      i: int
+      j: int
+      database: InitVar[DatabaseType] = None
+
+#+end_src
+
+
+Note how the database attribute is declared. InitVar will prevent @dataclass from treating database as a regular field. It will not be set as an instance attribute, and the dataclasses.fields function will not list it. However, database will be one of the arguments that the generated __init__ will accept, and it will be also passed to __post_init__. If you write that method, you must add a corresponding argument to the method signature, as shown in Example 5-18.
+
+
+**** Dublin Core Resource Record
+
+#+begin_src  python :results output :session fluent
+
+  from dataclasses import dataclass, field
+  from typing import Optional
+  from enum import Enum, auto
+  from datetime import date
+
+  class ResourceType(Enum):
+      BOOK = auto()
+      EBOOK = auto()
+      VIDEO = auto()
+
+  @dataclass
+  class Resource:
+      identifier: str
+      title: str = '<untitled>'
+      creators: list[str] = field(default_factory=list)
+      date: Optional[date] = None
+      description: str = ''
+      language: str = ''
+      subjects: list[str] = field(default_factory) = list
+
+#+end_src
