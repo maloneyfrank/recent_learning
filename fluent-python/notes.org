@@ -1,4 +1,4 @@
-def* fluent python notes
+* fluent python notes
 
 ** chapter one: the python data model
  
@@ -639,3 +639,6 @@ In CPython, the primary algorithm for garbage collection is reference counting. 
 #+begin_src python :session fluent :results output
 
 #+end_src
+
+
+** chapter seven: functions as objects
