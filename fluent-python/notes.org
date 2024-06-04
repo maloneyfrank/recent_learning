@@ -1,4 +1,4 @@
-* fluent python notes
+def* fluent python notes
 
 ** chapter one: the python data model
  
@@ -479,5 +479,163 @@ Note how the database attribute is declared. InitVar will prevent @dataclass fro
       description: str = ''
       language: str = ''
       subjects: list[str] = field(default_factory) = list
+
+#+end_src
+
+
+
+** chapter six: object references, mutability, recycling
+
+#+begin_src python :session fluent :results output
+
+  a = [1,2,3]
+  b = a
+  a.append(4)
+  print(b)
+
+#+end_src
+
+#+RESULTS:
+: [1, 2, 3, 4]
+
+**** Identity, Equality, Aliases
+
+#+begin_src python  :session fluent
+
+  charles = {'name': 'Charles L. Dodgson', 'born': 1832}
+  lewis = charles
+
+  lewis is charles # True
+
+  id(charles), id(lewis)
+
+  lewis['balance'] = 950
+
+  charles
+
+  alex = {'name': 'Charles L. Dodgson', 'born': 1832, 'balance': 950}
+
+  alex is charles # False
+
+#+end_src
+
+#+RESULTS:
+: False
+
+aliasing - two variables bound to the same object.
+
+In CPython id() returns the memory address of the object - unique integer label that will not change during the life of the object.
+
+== compares the values, is compares their identities
+
+None is the most common singleton that gets tested with is.
+
+is faster than ==, because it cannot be overloaded - the compute is as simple as comparing two integer ids. but == is syntactic sugar for __eq__
+
+
+#+begin_src python :session fluent :results output
+
+  l1 = [3, [66, 55, 44], (7, 8, 9)]
+  l2 = list(l1)  # makes a shallow copy - can also do l1[:]
+  l1.append(100)     
+  l1[1].remove(55)# l2[1] is bound to the same list as l1[1]
+  print('l1:', l1)
+  print('l2:', l2)
+  l2[1] += [33, 22]  
+  l2[2] += (10, 11)  
+  print('l1:', l1)
+  print('l2:', l2)
+
+#+end_src
+
+#+RESULTS:
+: l1: [3, [66, 44], (7, 8, 9), 100]
+: l2: [3, [66, 44], (7, 8, 9)]
+: l1: [3, [66, 44, 33, 22], (7, 8, 9), 100]
+: l2: [3, [66, 44, 33, 22], (7, 8, 9, 10, 11)]
+
+**** Deep and Shallow Copies of Arbitrary Objects
+
+#+begin_src python :session fluent :results output
+  class Bus:
+      def __init__(self, passengers = None):
+          if passengers is None:
+              self.passengers = []
+          else:
+              self.passengers = list(passengers)
+
+      def pick(self, name):
+          self.passengers.append(name)
+
+      def drop(self, name):
+          self.passengers.remove(name)
+#+end_src
+
+
+if we copy() bus1, it has distinct id but share the same list object
+deepcopy() actually refers to another list
+
+
+**** Function Parameters as References
+
+Call by sharing - each formal parameter of the function gets a copy of each reference in the arguments.
+
+The parameters inside the function betcome aliases of the actual arguments.
+
+A function, thus, may change any mutable object that is passed as a parameter, but it cannot change the identity of those objects.
+
+
+#+begin_src python :session fluent :results output
+  def f(a,b):
+      a += b
+      return a
+
+  x = 1
+  y = 2
+  print(f(x,y))
+  print(x)
+
+  x = [1,2]
+  y = [3,4]
+  print(f(x,y))
+  print(x) # list is changed
+
+  x = (1,2)
+  y = (3,4)
+  print(f(x,y))
+  print(x)  
+#+end_src
+
+#+RESULTS:
+: 3
+: 1
+: [1, 2, 3, 4]
+: [1, 2, 3, 4]
+: (1, 2, 3, 4)
+: (1, 2)
+
+
+If a default value is mutable object and you change it, the change will affect every future call of the function.
+
+Unless a method is explicitly intended to mutate an object received as an argument, you should think twice before aliasing the argument object by simply assigning it to an instance variable in your class. If in doubt, make a copy. Your clients will be happier. Of course, making a copy is not free: there is a cost in CPU and memory. However, an API that causes subtle bugs is usually a bigger problem than one that is a little slower or uses more resources.
+
+
+**** del and Garbage Collection
+
+In CPython, the primary algorithm for garbage collection is reference counting. Essentially, each object keeps count of how many references point to it. As soon as that refcount reaches zero, the object is immediately destroyed: CPython calls the __del__ method on the object (if defined) and then frees the memory allocated to the object.
+
+ del does not delete objects, but objects may be deleted as a consequence of being unreachable after del is used.
+ 
+ Weak references to an object do not increase its reference count. Therefore, a weak reference does not prevent the target object from being garbage collected. Weak references are useful in caching applications because you don’t want the cached objects to be kept alive just because they are referenced by the cache.
+
+
+
+#+begin_src python :session fluent :results output
+
+#+end_src
+
+
+
+#+begin_src python :session fluent :results output
 
 #+end_src
