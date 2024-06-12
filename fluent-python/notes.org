@@ -8,7 +8,7 @@
    
  * the underscore before the class variable name indicates that it is intended for internal used to the class. 
 
-
+   
  #+begin_src python :results output :session fluent
    import collections
 
@@ -178,7 +178,7 @@ Normally, your code should not have many direct calls to special methods. Unless
   import math
 
   class Vector:
-
+      
       def __init__(self, x=0, y=0):
           self.x = x
           self.y = y
@@ -195,7 +195,7 @@ Normally, your code should not have many direct calls to special methods. Unless
 
       def __add__(self, other):
           x = self.x + other.x
-          y = self.y+other.y
+          y = self.y + other.y
 
           return Vector(x,y)
 
@@ -214,7 +214,6 @@ As implemented, Example 1-2 allows multiplying a Vector by a number, but not a n
   v2 = Vector(2,3)
 
   v1+v2
-
 #+end_src
 
 #+RESULTS:
@@ -265,6 +264,10 @@ These are the main topics this chapter will cover:
 - Flat sequences
   - Hold items of one simple type.
     - str, bytes, array.array
+
+#+begin_src python :session fluent :results output
+
+#+end_src
 
       
     
@@ -526,11 +529,11 @@ aliasing - two variables bound to the same object.
 
 In CPython id() returns the memory address of the object - unique integer label that will not change during the life of the object.
 
-== compares the values, is compares their identities
+== compares the values, *is* compares their identities
 
-None is the most common singleton that gets tested with is.
+None is the most common singleton that gets tested with *is*.
 
-is faster than ==, because it cannot be overloaded - the compute is as simple as comparing two integer ids. but == is syntactic sugar for __eq__
+  - faster than ==, because it cannot be overloaded - the compute is as simple as comparing two integer ids. but == is syntactic sugar for __eq__
 
 
 #+begin_src python :session fluent :results output
@@ -642,3 +645,239 @@ In CPython, the primary algorithm for garbage collection is reference counting. 
 
 
 ** chapter seven: functions as objects
+
+"first-class object" entity that can be: 
+
+  * created at runtime
+  * assigned to a variable or element in a data structure
+  * passed as an argument to a function
+  * returned as the result of a function
+    
+
+    #+begin_src python :session fluent
+
+      def factorial(n):
+          """ returns n! """
+          return 1 if n < 2 else n * factorial(n-1)
+
+      factorial.__doc__
+
+    #+end_src
+
+    #+RESULTS:
+    :  returns n! 
+
+**** Higher-Order Functions
+
+#+begin_src python :session fluent
+
+  fruits = ['strawberry', 'fig', 'apple', 'cherry', 'raspberry', 'banana']
+
+  def reverse(word):
+      return word[::-1]
+
+  sorted(fruits, key=reverse)
+
+#+end_src
+
+#+RESULTS:
+| banana | apple | fig | raspberry | strawberry | cherry |
+
+A function that takes a function as an argument or returns a function as the result is a higher-order function
+
+**** Modern Replacements for map, filter, reduce
+
+#+begin_src python :session fluent
+
+  list(map(factorial, range(6)))
+  [factorial(n) for n in range(6)]
+
+  list(map(factorial, filter(lambda n: n % 2, range(6))))
+  [factorial(n) for n in range(6) if n % 2]
+
+#+end_src
+
+#+RESULTS:
+| 1 | 6 | 120 |
+
+
+FREDRIK LUNDH’S LAMBDA REFACTORING RECIPE
+If you find a piece of code hard to understand because of a lambda, Fredrik Lundh suggests this refactoring procedure:
+
+Write a comment explaining what the heck that lambda does.
+
+Study the comment for a while, and think of a name that captures the essence of the comment.
+
+Convert the lambda to a def statement, using that name.
+
+Remove the comment.
+
+These steps are quoted from the “Functional Programming HOWTO”, a must read.
+
+The lambda syntax is just syntactic sugar: a lambda expression creates a function object just like the def statement. That is just one of several kinds of callable objects in Python. The following section reviews all of them.
+
+#+begin_src python :session fluent
+
+  sorted(fruits, key = lambda word: word[::-1])
+
+#+end_src
+
+#+RESULTS:
+| banana | apple | fig | raspberry | strawberry | cherry |
+
+**** Nine Flavors of Callable Objects
+
+To determine if an object is callable, use the callable() built-in function.
+
+- User Defined Functions
+  Created with def or lambda.
+  
+- Built-in Functions
+  Implemented in c like len
+  
+- Built-in Methods
+  Implemented in C like dict.getattr
+
+- Methods
+  Functions defined in the body of a class.
+
+- Classes
+  When invoked, a class runs its __new__ method to create an instance, then __init__ and then instance returned to caller.
+
+- Class instances - if a class defines a __call__ method
+
+- Generator Functions
+  Functions or methods that use the yield keyword in their body. When called, they return a generator object.
+
+- Native Coroutine functions.
+  Defined with async def.
+
+- Async Generators.
+
+**** User-Defined Callable Types.
+  
+#+begin_src python :session fluent
+
+  import random
+
+  class BingoCage:
+
+      def __init__(self, items):
+          self._items = list(items)
+          random.shuffle(self._items)
+
+      def pick(self):
+          try:
+              return self._items.pop()
+          except IndexError:
+              raise LookupError('pick from an empty BingoCage')
+
+      def __call__(self):
+          return self.pick()
+
+  bingo = BingoCage(range(3))
+  bingo()
+#+end_src
+
+#+RESULTS:
+: 1
+
+** chapter eight: type hints in functions
+
+A gradual type system:
+
+ - optional
+ - does not catch type errors at runtime
+ - does not enhance performance
+
+   
+
+#+begin_src python :session fluent
+  def show_count(count: int, word: str) -> str:
+      if count == 1:
+          return f'1 {word}'
+      count_str = str(count) if count else 'no'
+      return f'{count_str} {word}s'
+
+  show_count(99, 'bird')
+#+end_src
+
+#+RESULTS:
+: 99 birds
+
+
+#+begin_src python :session fluent
+  from typing import Optional
+
+  def show_count(count: int, singular: str, plural: Optional[str] = None) -> str:
+         if count == 1:
+                return f'1 {word}'
+         count_str = str(count) if count else 'no'
+
+         if not plural:
+                plural = singular + 's'
+
+         return f'{count_str} {plural}'
+
+  show_count(99, 'mouse', 'mice')
+#+end_src
+
+#+RESULTS:
+: 99 mice
+
+None is the best default for mutable type optional parameters.
+
+**** types are defined by supported operations
+
+in practice, it is most useful to consider the set of supported operations as the defining characteristic of a type. 
+
+***** Duck Typing
+The view adopted by Smalltalk—the pioneering object-oriented language—as well as Python, JavaScript, and Ruby. Objects have types, but variables (including parameters) are untyped. In practice, it doesn’t matter what the declared type of the object is, only what operations it actually supports. If I can invoke birdie.quack(), then birdie is a duck in this context. By definition, duck typing is only enforced at runtime, when operations on objects are attempted. This is more flexible than nominal typing, at the cost of allowing more errors at runtime
+
+***** Nominal Typing
+The view adopted by C++, Java, and C#, supported by annotated Python. Objects and variables have types. But objects only exist at runtime, and the type checker only cares about the source code where variables (including parameters) are annotated with type hints. If Duck is a subclass of Bird, you can assign a Duck instance to a parameter annotated as birdie: Bird. But in the body of the function, the type checker considers the call birdie.quack() illegal, because birdie is nominally a Bird, and that class does not provide the .quack() method. It doesn’t matter if the actual argument at runtime is a Duck, because nominal typing is enforced statically. The type checker doesn’t run any part of the program, it only reads the source code. This is more rigid than duck typing, with the advantage of catching some bugs earlier in a build pipeline, or even as the code is typed in an IDE.
+
+
+**** types usable in annotations:
+
+- typing.Any
+- Simple types and classes
+- typing.Optional and typing.Union
+- Generic collections, including tuples and mappings
+- Abstract base classes
+- Generic iterables
+- parameterized generics and TypeVar
+- typing.Protocols - the key to static duck typing
+- typing.Callable
+- typing.NoReturn
+
+
+
+***** Any type
+assumption of the type checker:
+
+def double(x: Any) -> Any
+# ok
+def double(x: object) -> object:
+
+# type checker will reject
+More general types have narrower interfaces, i.e., they support fewer operations.
+
+But Any is a magic type that sits at the top and bottom of the type hierarcy - it simultaneously is the most general - accepting values of any type and the most specialized - supporting every possible operation (at the type checker level). 
+
+
+#+begin_src python :session fluent
+
+#+end_src
+
+
+#+begin_src python :session fluent
+
+#+end_src
+
+
+#+begin_src python :session fluent
+
+#+end_src
+
+
