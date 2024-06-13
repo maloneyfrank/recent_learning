@@ -809,6 +809,7 @@ A gradual type system:
 #+begin_src python :session fluent
   from typing import Optional
 
+  # alternate = plural: str | None = None
   def show_count(count: int, singular: str, plural: Optional[str] = None) -> str:
          if count == 1:
                 return f'1 {word}'
@@ -863,7 +864,105 @@ def double(x: object) -> object:
 # type checker will reject
 More general types have narrower interfaces, i.e., they support fewer operations.
 
-But Any is a magic type that sits at the top and bottom of the type hierarcy - it simultaneously is the most general - accepting values of any type and the most specialized - supporting every possible operation (at the type checker level). 
+But Any is a magic type that sits at the top and bottom of the type hierarcy - it simultaneously is the most general - accepting values of any type and the most specialized - supporting every possible operation (at the type checker level).
+
+
+***** be liberal in what you accept, conservative in what you send
+
+i.e. use abc.Mapping or abc.MutableMapping in parameter type hints instead of dict. 
+
+but then return a concrete type.
+
+
+
+#+begin_src python :session fluent
+  from collections.abc import Iterable
+
+  FromTo = Tuple[str, str]
+
+  def zip_replace(text: str, changes: Iterable[FromTo]) -> str:
+      for from_, to in changes:
+          text = text.replace(from_, to)
+      return text
+#+end_src
+
+#+RESULTS:
+
+Both math.fsum and replacer.zip_replace must iterate over the entire Iterable arguments to return a result. Given an endless iterable such as the itertools.cycle generator as input, these functions would consume all memory and crash the Python process. Despite this potential danger, it is fairly common in modern Python to offer functions that accept an Iterable input even if they must process it completely to return a result. *That gives the caller the option of providing input data as a generator instead of a prebuilt sequence, potentially saving a lot of memory if the number of input items is large.*
+
+
+
+
+#+begin_src python :session fluent
+
+  from collections.abc import Sequence
+  from random import shuffle
+  from typing import TypeVar
+
+  T = TypeVar('T')
+
+  def sample(population: Sequence[T], size: int) -> list[T]:
+      if size < 1:
+          raise ValueError('size must be >= 1')
+      result = list(population)
+      shuffle(result)
+      return result[:size]
+#+end_src
+
+
+***** bounded typevar
+
+
+#+begin_src python :session fluent
+
+  from collections import Counter
+  from collections.anc import Iterable, Hashable
+  from typing import TypeVar
+
+  HashableT = TypeVar('HashableT', bound=Hashable)
+
+  def mode(data: Iterable[HashableT]) -> HashableT:
+      pairs = Counter(data).most_common(1)
+      if len(pairs) == 0:
+          raise ValueError('no mode for empty data')
+      return pairs[0][0]
+
+#+end_src
+
+**** static protocols
+
+instead of bounding as above, it is possible to define a protocol by specifying one or more methods and the type checker verifies that those methods are implemented where that protocol type is required.
+
+
+for instance, sorted requires a type that implements __lt__
+
+#+begin_src python :session fluent
+  from typing import Protocol, Any
+
+  class SupportsLessThan(Protocol):
+      # body of a protocl has one or more method definitions with ... in the bodies.
+      def __lt__(self, other: Any) -> bool: ...
+#+end_src
+
+#+RESULTS:
+
+
+a type T is consistent with protocol P if T implements all the methods defined in P, with matching type signatures. 
+
+
+#+begin_src python :session fluent
+  from collections.abc import Iterahanble
+  from typing import TypeVar
+
+  LT = TypeVar('LT', bound=SupportsLessThan)
+
+  def top(series: Iterable[LT], length: int) -> list[LT]:
+      ordered = sorted(series, reverse=True)
+      return ordered[:length]
+#+end_src
+
+
+
 
 
 #+begin_src python :session fluent
@@ -879,5 +978,3 @@ But Any is a magic type that sits at the top and bottom of the type hierarcy - i
 #+begin_src python :session fluent
 
 #+end_src
-
-
