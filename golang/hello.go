@@ -11,7 +11,13 @@ type Set struct {
 }
 
 func main() {
-	mySet = "tugh"
-	fmt.Printf("Hello %s", name)
+
+	mySet := Set{
+		Data: map[string]bool{
+			"hello": false,
+		},
+	}
+
+	fmt.Println(mySet)
 
 }
